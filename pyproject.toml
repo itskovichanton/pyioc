@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mybootstrap_ioc_itskovichanton"
+version = "0.0.1"
+authors = [
+    { name="Anton Itskovich", email="itskovichae@gmail.com" },
+]
+description = "spring-like IOC implementation"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/itskovichanton/pyioc"
