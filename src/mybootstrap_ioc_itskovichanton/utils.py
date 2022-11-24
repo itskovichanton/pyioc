@@ -2,6 +2,7 @@ import argparse
 import functools
 from collections import abc
 from collections.abc import MutableMapping, ItemsView
+from dataclasses import field
 from inspect import isclass
 
 from benedict import benedict
@@ -114,3 +115,7 @@ def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str = '.') -> Mut
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+def default_dataclass_field(v):
+    return field(init=False, default_factory=lambda: v)

@@ -35,7 +35,7 @@ def _create_bean_init(method, prefs: _Bean, **kwargs):
     def _impl(self, *method_args, **method_kwargs):
         r = method(self, *method_args, **method_kwargs)
         # from here we have a bean created
-        print("BEAN_CREATED ", self, "hex=", hex(id(self)), ", bean=", prefs)
+        print("BEAN_CREATED ", self, "hex=", hex(id(self)), " from bean=", prefs)
         setattr(self, "_context", context)
         for k, v in kwargs.items():
             v = infer_from_tuple(context.properties, v)
