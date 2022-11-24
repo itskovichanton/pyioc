@@ -1,3 +1,3 @@
-# Python app-bootstrap engine
+# ioc
 
 spring-like IOC implementation
