@@ -9,9 +9,9 @@ from src.mybootstrap_ioc_itskovichanton.utils import StoreInDict, append_benedic
 
 
 def get_env_props() -> benedict:
-    r = create_benedict(copy.deepcopy(os.environ.__dict__.get("_data")))
+    r = create_benedict(copy.deepcopy(vars(os.environ).get("_data")))
     p = argparse.ArgumentParser(prefix_chars=' ')
     p.add_argument("options", nargs="*", action=StoreInDict, default=dict())
     args = p.parse_args(sys.argv[1:])
-    append_benedict(r, create_benedict(args.__dict__["options"]))
+    append_benedict(r, create_benedict(vars(args)["options"]))
     return r
