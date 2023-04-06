@@ -67,10 +67,15 @@ def infer_from_tuple(b: benedict, args):
 
 def _append_items(r: benedict, items: ItemsView):
     for k, v in items:
-        if "." in k:
-            keys = k.split(".")
-            if len(keys) == 1:
-                k = keys[0]
+        k = str(k)
+        v = str(v)
+        try:
+            if "." in k:
+                keys = k.split(".")
+                if len(keys) == 1:
+                    k = keys[0]
+        except BaseException as e:
+            print(k, ":", v)
         r[k] = v
 
 
