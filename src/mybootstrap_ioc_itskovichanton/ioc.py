@@ -99,15 +99,13 @@ class _IocModule(Module):
             _evbus.add_event(self._rebind, _event_rebind)
 
     def _bind_all(self):
-        print("REBIND ALL BEANS")
+        print("-- Rebind all beans")
 
         for target_type, beanList in _beans.items():
             for prefs in beanList:
                 self._rebind(target_type, prefs)
 
     def _rebind(self, target_type, prefs):
-        print("REBIND")
-
         if prefs.profile is None or prefs.profile == context.profile:
             if prefs.self_bound:
                 target_type = prefs.to_class
@@ -131,6 +129,7 @@ def _on_module_updated():
             _injector.__init__(m)
         else:
             _injector = Injector(m)
+        print(f"Beans total count: {len(_beans)}")
 
 
 _on_module_updated()

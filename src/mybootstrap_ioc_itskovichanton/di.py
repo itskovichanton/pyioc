@@ -10,10 +10,11 @@ config_service: ConfigService
 
 def print_banner():
     cfg = config_service.get_config()
-    print("*" * 100)
+    n = 50
+    print("*" * n)
     print(f"*\tStarting {cfg.app.full_name()}")
     print(f"*\tProfile: {cfg.profile}")
-    print("*" * 100)
+    print("*" * n)
 
 
 @singleton
