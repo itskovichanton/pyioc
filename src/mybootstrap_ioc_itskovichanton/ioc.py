@@ -1,4 +1,5 @@
 import functools
+import inspect
 import threading
 from dataclasses import dataclass
 from typing import Type, Optional, Any
@@ -31,7 +32,7 @@ context = Context()
 class _Bean:
     qualifier: Optional[str]
     scope: Type[Scope] = SingletonScope,
-    no_polymorph: bool = False
+    self_bound: bool = False
     to_class: Any = None
     profile: str = None
     bound: bool = False
@@ -43,22 +44,23 @@ _beans: dict[Any, list[_Bean]] = {}
 def _create_bean_init(method, prefs: _Bean, **kwargs):
     @functools.wraps(method)
     def _impl(self, *method_args, **method_kwargs):
-        r = method(self, *method_args, **method_kwargs)
-        # from here we have a bean created
-        obj = type(self)
-        try:
-            obj = str(self)
-        except:
-            ...
-        print("Init() called for", obj, "hex =", hex(id(self)), "from bean =", prefs)
+
+        print("Init() called for", type(self), "hex =", hex(id(self)), "from bean =", prefs)
+
         setattr(self, "_context", context)
         for k, v in kwargs.items():
             v = infer_from_tuple(context.properties, v)
             kwargs[k] = v
             setattr(self, k, v)
 
+        r = method(self, *method_args, **method_kwargs)
+
         if hasattr(self, 'init') and callable(self.init):
-            self.init(**kwargs)
+            init_method_spec = inspect.getfullargspec(self.init)
+            if init_method_spec.varkw:
+                self.init(**kwargs)
+            else:
+                self.init()
 
         return r
 
@@ -68,14 +70,14 @@ def _create_bean_init(method, prefs: _Bean, **kwargs):
 @omittable_parentheses(allow_partial=True)
 def bean(scope: Type[Scope] = SingletonScope,
          qualifier: Optional[str] = None,
-         no_polymorph: bool = False,
+         self_bound: bool = False,
          profile: str = None,
          **kwargs):
     def discover(cl):
         print(f"Bean discovered: {cl.__name__}")
         if cl and hasattr(cl, "__bases__"):
             cl = dataclass(cl)
-            prefs = _Bean(to_class=cl, scope=scope, no_polymorph=no_polymorph, profile=profile, qualifier=qualifier)
+            prefs = _Bean(to_class=cl, scope=scope, self_bound=self_bound, profile=profile, qualifier=qualifier)
             for base in cl.__bases__:
                 _beans.setdefault(base, []).append(prefs)
                 _evbus.emit(_event_rebind, base, prefs)
@@ -107,7 +109,7 @@ class _IocModule(Module):
         print("REBIND")
 
         if prefs.profile is None or prefs.profile == context.profile:
-            if prefs.no_polymorph:
+            if prefs.self_bound:
                 target_type = prefs.to_class
             print(f"binding {target_type.__name__} --> {prefs.to_class.__name__}")
             self.bind(target_type, to_class=prefs.to_class, scope=prefs.scope)

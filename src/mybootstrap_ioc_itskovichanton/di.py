@@ -1,4 +1,5 @@
 from opyoid import Injector
+from paprika import singleton
 
 from src.mybootstrap_ioc_itskovichanton import ioc
 from src.mybootstrap_ioc_itskovichanton.config import ConfigService
@@ -7,10 +8,20 @@ from src.mybootstrap_ioc_itskovichanton.utils import append_benedict
 config_service: ConfigService
 
 
+def print_banner():
+    cfg = config_service.get_config()
+    print("*" * 100)
+    print(f"*\tStarting {cfg.app.full_name()}")
+    print(f"*\tProfile: {cfg.profile}")
+    print("*" * 100)
+
+
+@singleton
 def injector() -> Injector:
     _injector = ioc.injector()
     global config_service
 
     config_service = _injector.inject(ConfigService)
     append_benedict(ioc.context.properties, config_service.config.settings)
+    print_banner()
     return _injector

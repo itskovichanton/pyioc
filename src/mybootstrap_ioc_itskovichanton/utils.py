@@ -43,11 +43,15 @@ def infer(b: benedict, keypath: str, default=None, result=None, none_result_viol
     value = b[keypath] if keypath in b else default
     if value is None and none_result_violated:
         raise ValueError(f"Value for key={keypath} has not been provided")
+
     if value is None and result is None:
         return None
 
     if type(value) in (dict, benedict) and isclass(result):
         return from_dict(data_class=result, data=value)
+
+    if result:
+        return result(value)
 
     return value
 

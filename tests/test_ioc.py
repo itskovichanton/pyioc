@@ -18,18 +18,20 @@ class OtherBean(AbstractBean):
         print("Hello from OtherBean")
 
 
-# @bean(profile="prod", qualifier="first", p1="qcb", p2="email.encoding", p4=("a.b.c.d", None, {"x": 1, "y": 2}))
-# class MyBean(AbstractBean):
-#     other_bean: OtherBean
-#
-#     def init(self, **kwargs):
-#         print("MyBean Constructed")
-#
-#     def info(self) -> str:
-#         return f"info() = {self.p4}"
-#
-#     def hello(self):
-#         print("Hello from MyBean")
+@bean(profile="dev", qualifier="first", p1="qcb", p2="email.encoding", p4=("a.b.c.d", None, {"x": 1, "y": 2}),
+      p5=("a.b", int))
+class MyBean(AbstractBean):
+    # other_bean: OtherBean
+
+    def init(self, **kwargs):
+        print("MyBean Constructed")
+        print(self.info())
+
+    def info(self) -> str:
+        return f"info() = {self.p4}"
+
+    def hello(self):
+        print("Hello from MyBean")
 
 
 class AbstractService:
@@ -43,9 +45,9 @@ class ProdService(AbstractService):
 
     def __init__(self, other_bean: AbstractBean):
         print("__init__")
-        self.other_bean=other_bean
+        self.other_bean = other_bean
 
-    def init(self, **kwargs):
+    def init(self):
         print("ProdService Constructed")
 
     def do_smth(self):
