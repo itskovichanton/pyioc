@@ -7,7 +7,6 @@ from typing import Type, Optional, Any
 from event_bus import EventBus
 from opyoid import Injector, SingletonScope, Module
 from opyoid.scopes import Scope
-
 from src.mybootstrap_ioc_itskovichanton.env import get_env_props
 from src.mybootstrap_ioc_itskovichanton.utils import infer_from_tuple, omittable_parentheses
 
@@ -107,7 +106,7 @@ class _IocModule(Module):
 
     def _rebind(self, target_type, prefs):
         if prefs.profile is None or prefs.profile == context.profile:
-            if prefs.self_bound:
+            if prefs.self_bound or target_type == object:
                 target_type = prefs.to_class
             print(f"binding {target_type.__name__} --> {prefs.to_class.__name__}")
             self.bind(target_type, to_class=prefs.to_class, scope=prefs.scope)
