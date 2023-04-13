@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Protocol
 
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
@@ -18,14 +19,29 @@ class OtherBean(AbstractBean):
         print("Hello from OtherBean")
 
 
+@dataclass
+class AcquiringConfig:
+    currency: str
+    lang: str
+    url: str
+
+
+@dataclass
+class Item:
+    a: int = None
+    b: int = None
+
+
 @bean(profile="dev", qualifier="first", p1="qcb", p2="email.encoding", p4=("a.b.c.d", None, {"x": 1, "y": 2}),
-      p5=("a.b", int))
+      p5=("a.b", int), p6=("l1.l2", list[Item], None), p7=("acquiring", dict[str, AcquiringConfig], None))
 class MyBean(AbstractBean):
     # other_bean: OtherBean
 
     def init(self, **kwargs):
         print("MyBean Constructed")
         print(self.info())
+        print(self.p6)
+        print(self.p7)
 
     def info(self) -> str:
         return f"info() = {self.p4}"

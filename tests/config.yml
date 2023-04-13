@@ -22,6 +22,26 @@ fr:
 sh:
   executor: C:\Program Files\Git\bin\bash.exe
 
+
+l1:
+  l2:
+    - a: 1
+      b: 2
+    - a: 1
+      b: 2
+    - a: 10
+      b: 12
+
+acquiring:
+  payboxacq:
+    currency: 417
+    lang: ru
+    url: http://192.168.200.239:5013
+  doscredoacq:
+    currency: 417
+    lang: ru
+    url: http://192.168.200.239:5013
+
 loggers:
   my:
     backup_count: 3

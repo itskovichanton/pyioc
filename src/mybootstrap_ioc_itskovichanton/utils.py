@@ -2,11 +2,13 @@ import argparse
 import functools
 from collections import abc
 from collections.abc import MutableMapping, ItemsView
+from dataclasses import dataclass
 from dataclasses import field
 from inspect import isclass
+from typing import get_origin, List, Dict
 
 from benedict import benedict
-from dacite import from_dict
+from dacite import from_dict, Config
 
 
 def trim_string(s: str, limit: int, ellips='…') -> str:
@@ -39,6 +41,9 @@ def omittable_parentheses(maybe_decorator=None, /, allow_partial=False):
         return decorator(maybe_decorator)
 
 
+_SPECIAL_TYPES = (dict, benedict, list, List, Dict)
+
+
 def infer(b: benedict, keypath: str, default=None, result=None, none_result_violated=True):
     v = b[keypath] if keypath in b else default
     if v is None and none_result_violated:
@@ -47,8 +52,17 @@ def infer(b: benedict, keypath: str, default=None, result=None, none_result_viol
     if v is None and result is None:
         return None
 
-    if type(v) in (dict, benedict) and isclass(result):
-        return from_dict(data_class=result, data=v)
+    if type(v) in _SPECIAL_TYPES:
+
+        if get_origin(result) in _SPECIAL_TYPES:
+            @dataclass
+            class _Wrapped:
+                value: result = None
+
+            return from_dict(data_class=_Wrapped, data={"value": v}, config=Config(check_types=False)).value
+
+        if isclass(result):
+            return from_dict(data_class=result, data=v, config=Config(check_types=False))
 
     if result:
         return result(v)
@@ -72,7 +86,7 @@ def infer_from_tuple(b: benedict, args):
 def _append_items(r: benedict, items: ItemsView):
     for k, v in items:
         k = str(k)
-        v = str(v)
+        # v = str(v)
         try:
             if "." in k:
                 keys = k.split(".")
