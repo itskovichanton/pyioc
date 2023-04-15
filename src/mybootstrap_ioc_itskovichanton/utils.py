@@ -70,16 +70,19 @@ def infer(b: benedict, keypath: str, default=None, result=None, none_result_viol
     return v
 
 
-def infer_from_tuple(b: benedict, args):
-    if type(args) is tuple:
+def infer_from_value(b: benedict, args):
+    if type(args) == tuple:
         if len(args) == 3:
             return infer(b, args[0], default=args[2], result=args[1], none_result_violated=False)
         if len(args) == 2:
             return infer(b, args[0], result=args[1])
         if len(args) == 1:
             return infer(b, args[0])
-    if type(args) is str:
-        return infer(b, args)
+    if type(args) == str:
+        try:
+            return infer(b, args)
+        except:
+            return args
     return None
 
 

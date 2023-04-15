@@ -8,7 +8,7 @@ from event_bus import EventBus
 from opyoid import Injector, SingletonScope, Module
 from opyoid.scopes import Scope
 from src.mybootstrap_ioc_itskovichanton.env import get_env_props
-from src.mybootstrap_ioc_itskovichanton.utils import infer_from_tuple, omittable_parentheses
+from src.mybootstrap_ioc_itskovichanton.utils import infer_from_value, omittable_parentheses
 
 _evbus = EventBus()
 _event_bus_bound = False
@@ -48,7 +48,7 @@ def _create_bean_init(method, prefs: _Bean, **kwargs):
 
         setattr(self, "_context", context)
         for k, v in kwargs.items():
-            v = infer_from_tuple(context.properties, v)
+            v = infer_from_value(context.properties, v)
             kwargs[k] = v
             setattr(self, k, v)
 
@@ -108,6 +108,7 @@ class _IocModule(Module):
         if prefs.profile is None or prefs.profile == context.profile:
             if prefs.self_bound or target_type == object:
                 target_type = prefs.to_class
+
             print(f"binding {target_type.__name__} --> {prefs.to_class.__name__}")
             self.bind(target_type, to_class=prefs.to_class, scope=prefs.scope)
             if not prefs.bound:
