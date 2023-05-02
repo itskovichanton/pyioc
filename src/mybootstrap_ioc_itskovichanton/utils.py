@@ -115,12 +115,15 @@ class StoreInDict(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         d = getattr(namespace, self.dest)
         for opt in values:
-            k, v = opt.split("=", 1)
-            k = k.lstrip("-")
-            if k in d:
-                d[k].append(v)
-            else:
-                d[k] = v
+            try:
+                k, v = opt.split("=", 1)
+                k = k.lstrip("-")
+                if k in d:
+                    d[k].append(v)
+                else:
+                    d[k] = v
+            except:
+                ...
         setattr(namespace, self.dest, d)
 
 
