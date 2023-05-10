@@ -35,7 +35,7 @@ class Config:
 class ConfigService(Protocol):
 
     def get_config(self) -> Config:
-        pass
+        ...
 
     def dir(self, *args) -> str:
         """App directory"""
@@ -54,7 +54,7 @@ class YamlConfigLoaderServiceImpl(ConfigLoaderService):
 
     def load(self) -> Config:
         with open(self.filename, encoding=self.encoding) as f:
-            settings: dict = yaml.load(f, Loader=yaml.FullLoader)
+            settings = yaml.load(f, Loader=yaml.FullLoader)
             profile = self._context.profile
             profile_settings = settings[profile]
             for k, v in profile_settings.items():

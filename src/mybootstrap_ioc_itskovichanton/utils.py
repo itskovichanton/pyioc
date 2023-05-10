@@ -64,7 +64,7 @@ def infer(b: benedict, keypath: str, default=None, result=None, none_result_viol
         if isclass(result):
             return from_dict(data_class=result, data=v, config=Config(check_types=False))
 
-    if result:
+    if result and type(v) != result:
         return result(v)
 
     return v

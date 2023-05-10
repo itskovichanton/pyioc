@@ -1,3 +1,7 @@
+from src.mybootstrap_ioc_itskovichanton import context
+
+context.profile = "dev"
+
 from src.mybootstrap_ioc_itskovichanton.di import injector
 from test_ioc import AbstractService
 

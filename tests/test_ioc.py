@@ -41,6 +41,7 @@ class MyBean(AbstractBean):
         print("MyBean Constructed")
         print(self.info())
         print(self.p6)
+        print(self.p5)
         print(self.p7)
 
     def info(self) -> str:

@@ -7,6 +7,9 @@ from typing import Type, Optional, Any
 from event_bus import EventBus
 from opyoid import Injector, SingletonScope, Module
 from opyoid.scopes import Scope
+
+from src.mybootstrap_ioc_itskovichanton import context
+from src.mybootstrap_ioc_itskovichanton.context import preprocess_context
 from src.mybootstrap_ioc_itskovichanton.env import get_env_props
 from src.mybootstrap_ioc_itskovichanton.utils import infer_from_value, omittable_parentheses
 
@@ -21,10 +24,12 @@ _lock = threading.Lock()
 @dataclass
 class Context:
     properties = get_env_props()
-    profile = properties.get("profile", default="dev")
+    profile = context.profile or properties.get("profile", default="dev")
 
 
 context = Context()
+if preprocess_context:
+    preprocess_context(context)
 
 
 @dataclass
