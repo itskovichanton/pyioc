@@ -45,7 +45,7 @@ _SPECIAL_TYPES = (dict, benedict, list, List, Dict)
 
 
 def infer(b: benedict, keypath: str, default=None, result=None, none_result_violated=True):
-    v = b[keypath] if keypath in b else default
+    v = b.get(keypath, default)
     if v is None and none_result_violated:
         raise ValueError(f"Value for key={keypath} has not been provided")
 
@@ -64,7 +64,7 @@ def infer(b: benedict, keypath: str, default=None, result=None, none_result_viol
         if isclass(result):
             return from_dict(data_class=result, data=v, config=Config(check_types=False))
 
-    if result and type(v) != result:
+    if result and (v is not None) and type(v) != result:
         return result(v)
 
     return v
