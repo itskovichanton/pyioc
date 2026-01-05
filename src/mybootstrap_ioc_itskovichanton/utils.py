@@ -83,7 +83,7 @@ def infer_from_value(b: benedict, args):
             return infer(b, args)
         except:
             return args
-    return None
+    return args
 
 
 def _append_items(r: benedict, items: ItemsView):
