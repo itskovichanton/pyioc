@@ -148,3 +148,21 @@ def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str = '.') -> Mut
 
 def default_dataclass_field(v):
     return field(init=False, default_factory=lambda: v)
+
+
+def merge_missing_keys(a: dict, b: dict) -> None:
+    """Модифицирует словарь 'a', добавляя отсутствующие ключи из 'b'
+
+    с учетом вложенности.
+    """
+    for key, value in b.items():
+        if key not in a:
+            # Если ключа нет в 'a', копируем его целиком из 'b'
+            # (используем deepcopy, чтобы не копировать ссылки на изменяемые объекты)
+            import copy
+
+            a[key] = copy.deepcopy(value)
+        elif isinstance(a[key], dict) and isinstance(value, dict):
+            # Если ключ есть в обоих словарях и оба они являются словарями,
+            # уходим в рекурсию для проверки вложенности
+            merge_missing_keys(a[key], value)

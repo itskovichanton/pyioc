@@ -1,13 +1,11 @@
 import os
-from dataclasses import dataclass
-from typing import Protocol, Optional
-
 import yaml
 from benedict import benedict
 from dacite import from_dict
-
+from dataclasses import dataclass
 from src.mybootstrap_ioc_itskovichanton.ioc import bean
-from src.mybootstrap_ioc_itskovichanton.utils import create_benedict
+from src.mybootstrap_ioc_itskovichanton.utils import create_benedict, merge_missing_keys
+from typing import Protocol, Optional
 
 
 @dataclass
@@ -60,7 +58,7 @@ class YamlConfigLoaderServiceImpl(ConfigLoaderService):
             for k, v in profile_settings.items():
                 s = settings.get(k)
                 if s:
-                    s.update(v)
+                    merge_missing_keys(s, v)
                 else:
                     settings[k] = v
             r = from_dict(data_class=Config, data=settings)
