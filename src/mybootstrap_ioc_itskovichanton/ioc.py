@@ -2,8 +2,6 @@ import functools
 import inspect
 import threading
 from dataclasses import dataclass
-from typing import Type, Optional, Any
-
 from event_bus import EventBus
 from opyoid import Injector, SingletonScope, Module
 from opyoid.scopes import Scope
@@ -11,6 +9,7 @@ from src.mybootstrap_ioc_itskovichanton import context
 from src.mybootstrap_ioc_itskovichanton.context import preprocess_context
 from src.mybootstrap_ioc_itskovichanton.env import get_env_props
 from src.mybootstrap_ioc_itskovichanton.utils import infer_from_value, omittable_parentheses
+from typing import Type, Optional, Any
 
 _evbus = EventBus()
 _event_bus_bound = False
@@ -55,7 +54,7 @@ def _create_bean_init(method, prefs: _Bean, **kwargs):
             try:
                 v = infer_from_value(context.properties, v)
             except BaseException as ex:
-                raise Exception(f"Cannot infer bean value for key={k}, cause={ex}") from ex
+                raise Exception(f'Cannot infer bean "{type(self).__name__}" value for key={k}, cause={ex}') from ex
             kwargs[k] = v
             setattr(self, k, v)
 
