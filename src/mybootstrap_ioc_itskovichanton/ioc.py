@@ -7,7 +7,6 @@ from typing import Type, Optional, Any
 from event_bus import EventBus
 from opyoid import Injector, SingletonScope, Module
 from opyoid.scopes import Scope
-
 from src.mybootstrap_ioc_itskovichanton import context
 from src.mybootstrap_ioc_itskovichanton.context import preprocess_context
 from src.mybootstrap_ioc_itskovichanton.env import get_env_props
@@ -53,7 +52,10 @@ def _create_bean_init(method, prefs: _Bean, **kwargs):
 
         setattr(self, "_context", context)
         for k, v in kwargs.items():
-            v = infer_from_value(context.properties, v)
+            try:
+                v = infer_from_value(context.properties, v)
+            except BaseException as ex:
+                raise Exception(f"Cannot infer bean value for key={k}, cause={ex}") from ex
             kwargs[k] = v
             setattr(self, k, v)
 
