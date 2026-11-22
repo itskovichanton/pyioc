@@ -16,6 +16,17 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "python-benedict",
+    "dacite",
+    "event-bus",
+    "opyoid",
+    "paprika",
+    "PyYAML",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/itskovichanton/pyioc"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
