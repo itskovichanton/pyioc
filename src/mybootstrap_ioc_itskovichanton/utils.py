@@ -1,4 +1,5 @@
 import argparse
+import copy
 import functools
 from collections import abc
 from collections.abc import MutableMapping, ItemsView
@@ -115,15 +116,19 @@ class StoreInDict(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         d = getattr(namespace, self.dest)
         for opt in values:
-            try:
-                k, v = opt.split("=", 1)
-                k = k.lstrip("-")
-                if k in d:
-                    d[k].append(v)
-                else:
-                    d[k] = v
-            except:
-                ...
+            if not isinstance(opt, str) or "=" not in opt:
+                continue
+            k, v = opt.split("=", 1)
+            k = k.lstrip("-")
+            if not k:
+                continue
+            current = d.get(k)
+            if k not in d:
+                d[k] = v
+            elif isinstance(current, list):
+                current.append(v)
+            else:
+                d[k] = [current, v]
         setattr(namespace, self.dest, d)
 
 
@@ -157,10 +162,6 @@ def merge_missing_keys(a: dict, b: dict) -> None:
     """
     for key, value in b.items():
         if key not in a:
-            # Если ключа нет в 'a', копируем его целиком из 'b'
-            # (используем deepcopy, чтобы не копировать ссылки на изменяемые объекты)
-            import copy
-
             a[key] = copy.deepcopy(value)
         elif isinstance(a[key], dict) and isinstance(value, dict):
             # Если ключ есть в обоих словарях и оба они являются словарями,

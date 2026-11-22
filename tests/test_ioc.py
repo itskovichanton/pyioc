@@ -5,7 +5,7 @@ from src.mybootstrap_ioc_itskovichanton.ioc import bean
 
 
 class AbstractBean(Protocol):
-    def hello(self):
+    def hello(self) -> str:
         ...
 
 
@@ -13,10 +13,10 @@ class AbstractBean(Protocol):
 class OtherBean(AbstractBean):
 
     def init(self):
-        print("OtherBean Constructed")
+        self.ready = True
 
-    def hello(self):
-        print("Hello from OtherBean")
+    def hello(self) -> str:
+        return "OtherBean"
 
 
 @dataclass
@@ -35,24 +35,17 @@ class Item:
 @bean(profile="dev", qualifier="first", p1="qcb", p2="email.encoding", p4=("a.b.c.d", None, {"x": 1, "y": 2}),
       p5=("a.b", int), p6=("l1.l2", list[Item], None), p7=("acquiring", dict[str, AcquiringConfig], None))
 class MyBean(AbstractBean):
-    # other_bean: OtherBean
 
     def init(self, **kwargs):
-        print("MyBean Constructed")
-        print(self.info())
-        print(self.p6)
-        print(self.p5)
-        print(self.p7)
+        self.ready = True
+        self.seen = dict(kwargs)
 
-    def info(self) -> str:
-        return f"info() = {self.p4}"
-
-    def hello(self):
-        print("Hello from MyBean")
+    def hello(self) -> str:
+        return "MyBean"
 
 
 class AbstractService:
-    def do_smth(self):
+    def do_smth(self) -> str:
         pass
 
 
@@ -61,25 +54,61 @@ class ProdService(AbstractService):
     other_bean: AbstractBean
 
     def __init__(self, other_bean: AbstractBean):
-        print("__init__")
         self.other_bean = other_bean
 
     def init(self):
-        print("ProdService Constructed")
+        self.ready = True
 
-    def do_smth(self):
-        print("do_smth() prints")
-        self.other_bean.hello()
-        print(f"I am ProdBean and i'm working! {self.appdata_env}")
+    def do_smth(self) -> str:
+        return f"prod via {self.other_bean.hello()} env={self.appdata_env}"
 
 
 @bean(profile="dev", a="qcb.version")
 class DevService(AbstractService):
-    other_bean: AbstractBean  # = field(init=False, default=None, metadata={"qualifier": "second"})
+    other_bean: AbstractBean
 
     def init(self, **kwargs):
-        print("DevBean Constructed")
+        self.ready = True
+        self.seen = dict(kwargs)
 
-    def do_smth(self):
-        self.other_bean.hello()
-        print(f"I am DevBean and i'm working! a={self.a}")
+    def do_smth(self) -> str:
+        return f"dev a={self.a} via {self.other_bean.hello()}"
+
+
+def test_dev_profile_wires_dev_beans_and_config(ioc_state):
+    ioc_state(
+        profile="dev",
+        **{
+            "a.b": 130,
+            "qcb.version": "1.1",
+            "email.encoding": "utf-8",
+        },
+    )
+    from src.mybootstrap_ioc_itskovichanton.ioc import injector
+
+    service = injector().inject(AbstractService)
+    assert isinstance(service, DevService)
+    assert service.ready is True
+    assert service.do_smth() == "dev a=1.1 via MyBean"
+    assert service.seen["a"] == "1.1"
+    bean = service.other_bean
+    assert isinstance(bean, MyBean)
+    assert bean.p5 == 130
+    assert bean.p2 == "utf-8"
+    assert bean.p4 == {"x": 1, "y": 2}
+    assert bean.p6 is None
+    assert bean.p7 is None
+    assert bean.seen["p5"] == 130
+    assert injector().inject(AbstractService) is service
+
+
+def test_prod_profile_wires_prod_beans(ioc_state):
+    ioc_state(profile="prod")
+    from src.mybootstrap_ioc_itskovichanton.ioc import injector
+
+    service = injector().inject(AbstractService)
+    assert isinstance(service, ProdService)
+    assert isinstance(service.other_bean, OtherBean)
+    assert service.ready is True
+    assert service.other_bean.ready is True
+    assert service.do_smth().startswith("prod via OtherBean env=")

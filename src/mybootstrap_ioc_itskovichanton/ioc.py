@@ -2,27 +2,27 @@ import functools
 import inspect
 import threading
 from dataclasses import dataclass
-from event_bus import EventBus
-from opyoid import Injector, SingletonScope, Module
+from typing import Any, Callable, Optional, Type
+
+from opyoid import Injector, Module, SingletonScope
 from opyoid.scopes import Scope
-from src.mybootstrap_ioc_itskovichanton import context
+
+from src.mybootstrap_ioc_itskovichanton import context as context_module
 from src.mybootstrap_ioc_itskovichanton.context import preprocess_context
 from src.mybootstrap_ioc_itskovichanton.env import get_env_props
 from src.mybootstrap_ioc_itskovichanton.utils import infer_from_value, omittable_parentheses
-from typing import Type, Optional, Any
 
-_evbus = EventBus()
-_event_bus_bound = False
-_event_rebind = "fire_rebind"
-_event_module_updated = "module_updated"
-_injector: Injector = None
 _lock = threading.Lock()
+_injector: Optional[Injector] = None
+_dirty = True
+_built_profile: Optional[str] = None
+_init_kwargs_cache: dict[Callable, bool] = {}
 
 
 @dataclass
 class Context:
     properties = get_env_props()
-    profile = context.profile or properties.get("profile", default="dev")
+    profile = context_module.profile or properties.get("profile", default="dev")
 
 
 context = Context()
@@ -32,42 +32,50 @@ if preprocess_context:
 
 @dataclass
 class _Bean:
-    qualifier: Optional[str]
-    scope: Type[Scope] = SingletonScope,
+    to_class: Any
+    scope: Type[Scope] = SingletonScope
     self_bound: bool = False
-    to_class: Any = None
-    profile: str = None
-    bound: bool = False
+    profile: Optional[str] = None
+    qualifier: Optional[str] = None
 
 
-_beans: dict[Any, list[_Bean]] = {}
+# Пара (базовый класс, бин). Контейнер по этому списку собирается один раз.
+_registrations: list[tuple[Any, _Bean]] = []
 
 
-def _create_bean_init(method, prefs: _Bean, **kwargs):
+def _init_accepts_kwargs(init: Callable) -> bool:
+    func = getattr(init, "__func__", init)
+    cached = _init_kwargs_cache.get(func)
+    if cached is not None:
+        return cached
+    takes = inspect.getfullargspec(func).varkw is not None
+    _init_kwargs_cache[func] = takes
+    return takes
+
+
+def _create_bean_init(method, specs: tuple[tuple[str, Any], ...]):
     @functools.wraps(method)
     def _impl(self, *method_args, **method_kwargs):
-
-        print("Init() called for", type(self), "hex =", hex(id(self)), "from bean =", prefs)
-
         setattr(self, "_context", context)
-        for k, v in kwargs.items():
+        resolved = {}
+        for key, spec in specs:
             try:
-                v = infer_from_value(context.properties, v)
+                value = infer_from_value(context.properties, spec)
             except BaseException as ex:
-                raise Exception(f'Cannot infer bean "{type(self).__name__}" value for key={k}, cause={ex}') from ex
-            kwargs[k] = v
-            setattr(self, k, v)
+                raise Exception(
+                    f'Cannot infer bean "{type(self).__name__}" value for key={key}, cause={ex}'
+                ) from ex
+            resolved[key] = value
+            setattr(self, key, value)
 
-        r = method(self, *method_args, **method_kwargs)
-
-        if hasattr(self, 'init') and callable(self.init):
-            init_method_spec = inspect.getfullargspec(self.init)
-            if init_method_spec.varkw:
-                self.init(**kwargs)
+        result = method(self, *method_args, **method_kwargs)
+        init = getattr(self, "init", None)
+        if callable(init):
+            if _init_accepts_kwargs(init):
+                init(**resolved)
             else:
-                self.init()
-
-        return r
+                init()
+        return result
 
     return _impl
 
@@ -79,15 +87,22 @@ def bean(scope: Type[Scope] = SingletonScope,
          profile: str = None,
          **kwargs):
     def discover(cl):
-        print(f"Bean discovered: {cl.__name__}")
-        if cl and hasattr(cl, "__bases__"):
-            cl = dataclass(cl)
-            prefs = _Bean(to_class=cl, scope=scope, self_bound=self_bound, profile=profile, qualifier=qualifier)
-            for base in cl.__bases__:
-                _beans.setdefault(base, []).append(prefs)
-                _evbus.emit(_event_rebind, base, prefs)
-            cl.__init__ = _create_bean_init(cl.__init__, prefs, **kwargs)
-
+        global _dirty
+        if not cl or not hasattr(cl, "__bases__"):
+            return cl
+        cl = dataclass(cl)
+        prefs = _Bean(
+            to_class=cl,
+            scope=scope,
+            self_bound=self_bound,
+            profile=profile,
+            qualifier=qualifier,
+        )
+        for base in cl.__bases__:
+            _registrations.append((base, prefs))
+        cl.__init__ = _create_bean_init(cl.__init__, tuple(kwargs.items()))
+        # Импорт только помечает контейнер грязным. Сборка — на следующем inject.
+        _dirty = True
         return cl
 
     return discover
@@ -96,47 +111,45 @@ def bean(scope: Type[Scope] = SingletonScope,
 class _IocModule(Module):
 
     def configure(self) -> None:
-        global _event_bus_bound
+        for target_type, prefs in _registrations:
+            if prefs.profile is not None and prefs.profile != context.profile:
+                continue
+            impl = prefs.to_class
+            scope = prefs.scope
+            if target_type is object or target_type is impl:
+                self.bind(impl, scope=scope)
+                continue
+            self.bind(target_type, to_class=impl, scope=scope)
+            if prefs.self_bound:
+                self.bind(impl, scope=scope)
 
-        self._bind_all()
-        if not _event_bus_bound:
-            _event_bus_bound = True
-            _evbus.add_event(self._rebind, _event_rebind)
 
-    def _bind_all(self):
-        print("-- Rebind all beans")
+def _bound_inject(target_type, *, named=None):
+    current = _ensure()
+    return Injector.inject(current, target_type, named=named)
 
-        for target_type, beanList in _beans.items():
-            for prefs in beanList:
-                self._rebind(target_type, prefs)
 
-    def _rebind(self, target_type, prefs):
-        if prefs.profile is None or prefs.profile == context.profile:
-            if prefs.self_bound or target_type == object:
-                target_type = prefs.to_class
-
-            print(f"binding {target_type.__name__} --> {prefs.to_class.__name__}")
-            self.bind(target_type, to_class=prefs.to_class, scope=prefs.scope)
-            if not prefs.bound:
-                prefs.bound = True
-                _evbus.emit(_event_module_updated)
-                print("bound")
+def _ensure() -> Injector:
+    """Один Injector на профиль. Заново собирается, только если появился бин или сменился профиль."""
+    global _injector, _dirty, _built_profile
+    while True:
+        profile = context.profile
+        if _injector is not None and not _dirty and _built_profile == profile:
+            return _injector
+        with _lock:
+            profile = context.profile
+            if _injector is not None and not _dirty and _built_profile == profile:
+                return _injector
+            _dirty = False
+            _built_profile = profile
+            if _injector is None:
+                _injector = Injector([_IocModule])
+                _injector.inject = _bound_inject
+            else:
+                _injector.__init__([_IocModule])
+            if not _dirty and _built_profile == context.profile:
+                return _injector
 
 
 def injector() -> Injector:
-    return _injector
-
-
-def _on_module_updated():
-    global _injector
-    with _lock:
-        m = [_IocModule]
-        if _injector:
-            _injector.__init__(m)
-        else:
-            _injector = Injector(m)
-        print(f"Beans total count: {len(_beans)}")
-
-
-_on_module_updated()
-_evbus.add_event(_on_module_updated, _event_module_updated)
+    return _ensure()

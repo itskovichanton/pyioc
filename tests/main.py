@@ -7,9 +7,8 @@ from test_ioc import AbstractService
 
 
 def main() -> None:
-    x = injector().inject(AbstractService)
-    x.do_smth()
+    print(injector().inject(AbstractService).do_smth())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
