@@ -1,5 +1,6 @@
 import functools
 import inspect
+import os
 import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Type
@@ -41,6 +42,19 @@ class _Bean:
 
 # Пара (базовый класс, бин). Контейнер по этому списку собирается один раз.
 _registrations: list[tuple[Any, _Bean]] = []
+
+
+def _verbose_enabled() -> bool:
+    return os.environ.get("PYIOC_VERBOSE", "").strip().lower() == "true"
+
+
+def _vlog(message: str) -> None:
+    if _verbose_enabled():
+        print(f"[pyioc] {message}", flush=True)
+
+
+def _type_name(tp: Any) -> str:
+    return getattr(tp, "__name__", None) or repr(tp)
 
 
 def _init_accepts_kwargs(init: Callable) -> bool:
@@ -111,17 +125,34 @@ def bean(scope: Type[Scope] = SingletonScope,
 class _IocModule(Module):
 
     def configure(self) -> None:
+        bound = 0
+        skipped = 0
         for target_type, prefs in _registrations:
-            if prefs.profile is not None and prefs.profile != context.profile:
-                continue
             impl = prefs.to_class
-            scope = prefs.scope
-            if target_type is object or target_type is impl:
-                self.bind(impl, scope=scope)
+            impl_name = _type_name(impl)
+            scope_name = _type_name(prefs.scope)
+            qualifier = f" qualifier={prefs.qualifier}" if prefs.qualifier else ""
+            if prefs.profile is not None and prefs.profile != context.profile:
+                skipped += 1
+                _vlog(
+                    f"skip {impl_name}: profile={prefs.profile}, активный={context.profile}"
+                )
                 continue
-            self.bind(target_type, to_class=impl, scope=scope)
+            if target_type is object or target_type is impl:
+                self.bind(impl, scope=prefs.scope)
+                bound += 1
+                _vlog(f"bind {impl_name} scope={scope_name}{qualifier}")
+                continue
+            self.bind(target_type, to_class=impl, scope=prefs.scope)
+            bound += 1
+            _vlog(
+                f"bind {_type_name(target_type)} -> {impl_name} scope={scope_name}{qualifier}"
+            )
             if prefs.self_bound:
-                self.bind(impl, scope=scope)
+                self.bind(impl, scope=prefs.scope)
+                bound += 1
+                _vlog(f"bind {impl_name} (self) scope={scope_name}{qualifier}")
+        _vlog(f"готово: привязок={bound}, пропущено по профилю={skipped}")
 
 
 def _bound_inject(target_type, *, named=None):
@@ -142,6 +173,7 @@ def _ensure() -> Injector:
                 return _injector
             _dirty = False
             _built_profile = profile
+            _vlog(f"сборка контейнера, profile={profile}, регистраций={len(_registrations)}")
             if _injector is None:
                 _injector = Injector([_IocModule])
                 _injector.inject = _bound_inject

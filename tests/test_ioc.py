@@ -102,6 +102,22 @@ def test_dev_profile_wires_dev_beans_and_config(ioc_state):
     assert injector().inject(AbstractService) is service
 
 
+def test_verbose_logs_container_build(ioc_state, monkeypatch, capsys):
+    monkeypatch.setenv("PYIOC_VERBOSE", "True")
+    ioc_state(profile="dev", **{"a.b": 1, "qcb.version": "1.1", "email.encoding": "utf-8"})
+    out = capsys.readouterr().out
+    assert "сборка контейнера, profile=dev" in out
+    assert "bind AbstractBean -> MyBean" in out
+    assert "skip OtherBean: profile=prod, активный=dev" in out
+    assert "готово:" in out
+
+
+def test_verbose_off_is_silent(ioc_state, monkeypatch, capsys):
+    monkeypatch.delenv("PYIOC_VERBOSE", raising=False)
+    ioc_state(profile="dev", **{"a.b": 1, "qcb.version": "1.1", "email.encoding": "utf-8"})
+    assert "[pyioc]" not in capsys.readouterr().out
+
+
 def test_prod_profile_wires_prod_beans(ioc_state):
     ioc_state(profile="prod")
     from src.mybootstrap_ioc_itskovichanton.ioc import injector
